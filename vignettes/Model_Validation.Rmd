@@ -65,7 +65,7 @@ Check maps match data (interactive map)
 library(zoon)
 ```
 
-```{r Workflow, message=FALSE, warning=FALSE, fig.align='center', fig.height=7, fig.width=7}
+```{r map, message=FALSE, warning=FALSE, fig.align='center', fig.height=7, fig.width=7}
 zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
                           covariate = CarolinaWrenRasters,
                           process = NoProcess,
@@ -73,11 +73,47 @@ zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
                           output = InteractiveMap)
 ```
 
+By exploring the map, we can check that the absences (or background points) overlay areas of low probability and the presences overlay areas of high probability, broadly. In the map of the carolina wren logistic regression SDM, we can see that the area with high probability in the southeast are overlain by the presences points and the purple areas, low probabilty, are overlain with the absences points.
 
-One can go a little bit further in evaluating model fit by plotting species repsonse curves where available (response curves)
+We can also use our ecological knowledge - our internal model of the system - to question the model output. We expect the Carolina wren to be associated with X type of environment whcih we know is present in the southeast of the US and absent in the north and west. Our predicted distribution matches our expectations.
 
-For parametric models, check coefficients make sense (go the same way as data, giev back sensible results) (coefficient plot)
+This is really the bare minimum we can do - check that our statistical model matches our internal model, or rather, current knowledge about the system. That isn't to say that we should be loyal to what we already know - part of buildin gmodels is to further scientific understanding. Indeed by exploring th epredicted distribution in the context of current understanding, new gaps in knowledge are often identified. These gaps can be further explored in future studies.
 
+
+The next step in checking our model against current understanding is to, when possible, plot the predicted responses of our species of interest. With zoon, we can do this by using th eoutput module `ResponseCurve`. These curves show the predicted variation in probabilty of occurrence over the enviornmental gradients included in our model. When we include pure covariates, these relationships are informative and useful in the context of management. When we combine our covariates into principle componants with principle componant analysis, we lose the value that interpretation of these response curves provide.
+
+```{r response plots, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
+                          covariate = CarolinaWrenRasters,
+                          process = NoProcess,
+                          model = LogisticRegression,
+                          output = ResponsePlot)
+```
+
+Lastly, in our bare minimum model evalaution, we can check the coeffcients of our linear predicted (for parametric models). When we're checking the coefficients, we're makign sure that the sign of the coefficeint matches the raw data. It would be spurious if, after plotting the raw data, that a positive relationship was predicted when a negative one is observed. We can check coefficients by using the output module ` `.
+
+```{r coefficients, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
+                          covariate = CarolinaWrenRasters,
+                          process = NoProcess,
+                          model = LogisticRegression,
+                          output = CoefficientPlot)
+```
+
+In this coefficient plot, from our logistic regression SDM, we can see the estimated coefficient for each of our included covariates. The covariates that have a p-value of less than 0.05 are orange and the non-significant coefficeints are navy blue. For the carolina wren...
+
+
+
+
+Let's do all these things at once:
+```{r chain bare minimum, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
+                          covariate = CarolinaWrenRasters,
+                          process = NoProcess,
+                          model = LogisticRegression,
+                          output = Chain(PrintMap, ResponsePlot, CoefficientPlot))
+
+```
 
 
 # Independence
@@ -88,17 +124,57 @@ An underlying assumption of most presence-background regression models is that t
 
 ### Internal evalution
 
-The next step up in the model evaluation game is internal evaluation. Internal evaluation checks if our model is a good description of the data we fit it with.
+The next step up in the model evaluation game is internal evaluation. Internal evaluation checks if our model is a good description of the data we fit it with. To do this in zoon, we use the process module Crossvalidate with k folds. To get the benfit of crossvalidation, we need to measure how good the fit is to the folded datasets left out. We can do this with the output module PerformanceMeasures.
 
-#### Deviance and Variance
+```{r roc curve, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
+                          covariate = CarolinaWrenRasters,
+                          process = NoProcess,
+                          model = LogisticRegression,
+                          output = ROCcurve)
+```
 
-R-squared (variance explained)
+### Crossvalidation
+
+```{r performance measure, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
+                          covariate = CarolinaWrenRasters,
+                          process = Crossvalidate(k = 10),
+                          model = LogisticRegression,
+                          output = PerformanceMeasures)
+```
+
+Then, from the workflow object, we can get the performance measures by extracting the output from the workflow using hte accessor function `Output()`. This returns a list of all the performance measures
+
+```{r performance measure extract, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+Output(zoon_workflow)
+
+```
 
 
 
-Deviance
+
+The Crossvalidate process module randomly groups fold datasets (if presence-absence, the folds have equal proportions of presence and absences as in the dataset). However, we can more specifically ask how our model is at prediction. For example, we can do geographic cross-validation where we ask how our model can predict across geographic space. We do this by....
+
+#### Comparing models
+
+We can use the performance measuer discussed above to select between models
+```{r compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
+                          covariate = CarolinaWrenRasters,
+                          process = Crossvalidate(k = 10),
+                          model = list(LogisticRegression, mgcv),
+                          output = PerformanceMeasures)
+```
+
+When we have more than one model module in a list, our performance measures are returned in a list of length n models
+```{r performance measure extract compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+Output(zoon_workflow)
+
+```
 
 #### Information criteria
+
 Adding more parameters almost always improves the fit of the model, so why not just put them all in? While adding more parameters improves the fit, it may reduce the ability of the model to predict new data outside your current sample. 
 
 There are two fundamental types of statistical error that we must deal with when evaluating and interpreting model results: overfitting and underfitting. Both of these errors lead to poor prediction by the model, or its ability to retrodict the original data. When we overfit our data, we learn too much from our data, while underfitting leads us to learn too little from our data. 
@@ -110,36 +186,7 @@ The information theoretic approach to model selection uses information criteria,
 
 This approach is in contrast to significance testing approaches that focus on selecting models where all terms have <0.05 significance. Some 'significant' terms may not help improve prediction, whereas some that are not might. 
 
-
-
-
-
-
 Information criteria build on deviance measures by penalising models for additional covariates. That is, they select for accurate and *parimsoneous* models.
-
-### Cross-validation
-
-Model cross-validation is the gold standard of model evalution in species distritbuion models. In the absence of a independent dataset, that is.
-
-There's many way to do cross-validation and again it depends on what aspect of model performance we want to check.
-
-Cross-validation works as follows - you iteratively split the data into a test and training dataset. The model is fit (or 'trained') with the traiing dataset and evaluated with the test dataset.
-
-#### K-fold
-
-#### Bootstrap
-
-#### Extrapolation in space
-
-Want to do if need to predict range shift or to a new location. Olden (ref) refer to this as the transferability of the model in space. And you do it by 
-
-Can your model predict extremes? Can it extrpolate.
-
-#### The controversial AUC
-
-#### Specificity
-
-#### Selectivity
 
 ## Call to action
 
