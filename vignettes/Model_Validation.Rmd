@@ -29,166 +29,126 @@ knitr::opts_chunk$set(message = FALSE,
 
 # Introduction
 
-Species distribution models are used for all sorts of important decisions: choosing protected areas, prioritising conservation actions, informing development applications, even determining the conservation status of species. As such, we need to know how much faith we can put in our models. We need to know if they are up to the task we set for them. We do that by evaluating our model's performance.
+Species distribution models are used for all sorts of important decisions: choosing protected areas, prioritising conservation actions, informing development applications, even determining the official conservation status of species. As such, we need to know how much to believe our models. We need to know if they are up to the task we set for them. We do that by evaluating our model's performance.
 
-Model evaluation is the process of determining if our model is close enough to reality for our purpose. Models are smaller, simpler, hopefully useful versions of reality, but all models are wrong. Whether our imperfect model is useful is dependent on what we're going to use it for. For example, if we wish to predict the geographic expansion of a species under a changing climate, we need to know if our model can extrapolate across geographic space. But, if we wish only to accurately map the current distribution of a species, we don't mind much at all if our model can extrapolate accurately. It is thus important to consider not how good our model is in absolute terms, but  rather if our model is *good enough* for its purpose. Model evaluation, then, is the process of checking our model outputs to determine if they are a close enough representation of reality for the purpose you're using it for.
+Model evaluation is the process of determining if our model is close enough to reality for our purpose. Models are smaller, simpler, hopefully useful versions of reality, but all models are wrong. Whether our imperfect model is useful is dependent on what we're going to use it for. For example, if we wish to predict the geographic expansion of a species under a changing climate, we need to know if our model can extrapolate across geographic space. But, if we wish only to accurately map the current distribution of a species, we don't mind much at all if our model can't extrapolate accurately. It is thus important to consider not how good our model is in absolute terms, but  rather if our model is *good enough* for its purpose. Model evaluation, then, is the process of checking our model outputs to determine if they are a close enough representation of reality for the purpose we're using it for. Are our models fit-for-purpose?
 
-## Fit-for-purpose
+In this `zoon` guide, we will discuss different methods of evaluating a model (or set of models), when we might choose one method over another, and how to use `zoon` to implement these different evaluation methods. We split model evaluation methods and metrics into three broad categories increasing in thoroughness: the bare minimum, internal evaluation, and cross-validation.
 
-+ tradeoff of fit and predictive capacity
-
-The purpose of our model will decide for us both how we evaluate our model and whether the goodness of fit, or lack thereof, determined by our evaluation is tolerable. Determinig if our model is 'good enough' is not a simple task and generally has to be justified on a case by case basis. Are we building a model to identify gradients species respond to and contribute to ecological knowledge? Or maybe we are running models on behalf of a governmental agency and thus require accurate models? We'll address some of these nuances throughout this guide. However, there is one facet of model fit worht discussing straight up - over-fitting.
-
-Models are considered over-fitted when they go beyond identifying a pattern in data and instead fit a relationship to the noise in the data - to the stochastic variation. In species distribution models, sometimes we want to avoid over-fitting and sometimes we don't mind. Generally, if we only want to know about here and now as precisely as possible, over-fitting our models is of littel concern. For example, if there is a location where a species is found but that location is an outlier as far as the species is concerned, we still want to protect it. Thus, a model which estimates that location as a presence if useful. If we use a model that determines that site is an outlier, and therefore has a low probability of presence, we will miss it in our conservation prioritisations. Over-fitted models are difficult to identify and the jury is still out on precisley what makes a model over-fitted. 
-
-Model evaluation then, even over-fitted models, is an exercise in justifying that our model is fit for the purpose for which we made it. It is not an exercise in validating that our models perfectly reflect reality. For example, a model that only explains 15% of the variance in the data but identifies an important environmental gradient is still a useful model for the purpose of generating ecological knowledge. It is probably not a model we should use to inform development applications but it is still a useful model.
-
-### Calibration versus discrimination
-
-### We cannot validate a model by comparing it to another model
-
-## How
-
-In this `zoon` guide, we will discuss the different methods of evaluating a model (or set of models), when we might choose one method of evaluation over another, and how to use `zoon` to implement these different evaluation methods. In this guide, we split model evaluation methods and metrics into three broad categories increasing in thoroughness: bare minimum, internal evaluation, and cross-validation.
-
-However, no matter which category of evaluation method and metric we choose, there are a few over-arhcing princples to keep in mind. Firstly, we want our results to *make sense* ecologically and reflect our raw data. Secondly, we would like the most parsimoneous model. Some old white man said 'the simplest answer is usualy the right answer'. Thus, if given the choice between two equally performing models, we would choose the least complicated model, the model with the fewest environmental covariates. Lastly, we want our model to be able to predict the data we fitted it with; we want it to be accurate and not biased. In this guide, we'll discuss the various model evaluation methods and metrics in line with these guiding principles.
-
-### The bare minimum
-
-Let's first run through the Bare Minimum. The Bare Minimum is what we absolutely must do in order to be able to defend our choice of model. Remember a model consists of the response data, the environmental covariates, and the modelling method we choose. Some of the bare mimimum is just part and parcel of interpretting the results, but while we're interpretting our results, it's good to remember that we need to question the model not accept the printed map or response curve as gospel truth.
-
-The bare minimum can be split into two categories: checking the model results against our data and checking the model against our knowledge of the ecology we're modelling.
-
-Check maps match data (interactive map)
+Throughout this guide, we'll work with thre Carolina wren. Here is our `zoon` workflow saved as a zoon object:
 
 ```{r Library, message=FALSE, warning=FALSE}
 library(zoon)
 ```
 
-```{r map, message=FALSE, warning=FALSE, fig.align='center', fig.height=7, fig.width=7}
-zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
-                          covariate = CarolinaWrenRasters,
-                          process = NoProcess,
-                          model = LogisticRegression,
-                          output = InteractiveMap)
+```{r workflow, message=FALSE, warning=FALSE, fig.align='center', fig.height=7, fig.width=7, cache = TRUE}
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = NoProcess,
+               model = LogisticRegression,
+               output = NoOutput)
+```
+
+# The bare minimum
+
+The Bare Minimum is what we absolutely must do in order to be able to defend our model. The bare minimum is about checking that our results *make sense*. Does our model make sense given the data we fit it with and does it make sense when considering our internal model of the system we're studying.
+
+First things first, let's visually check the raw data against the fitted result using a map. We'll plot the predicted surface of our model using the `PrintMap` ourput module and overlay the raw date with the `points=TRUE` argument.
+
+
+
+```{r map, message=FALSE, warning=FALSE, fig.align='center', fig.height=7, fig.width=7, cache = TRUE}
+
+ChangeWorkflow(wf, output = PrintMap(points=TRUE))
 ```
 
 By exploring the map, we can check that the absences (or background points) overlay areas of low probability and the presences overlay areas of high probability, broadly. In the map of the carolina wren logistic regression SDM, we can see that the area with high probability in the southeast are overlain by the presences points and the purple areas, low probabilty, are overlain with the absences points.
 
-We can also use our ecological knowledge - our internal model of the system - to question the model output. We expect the Carolina wren to be associated with X type of environment whcih we know is present in the southeast of the US and absent in the north and west. Our predicted distribution matches our expectations.
+We can also use our ecological knowledge - our internal model of the system - to question the model output. We expect the Carolina wren to be associated with X type of environment which we know is present in the southeast of the US and absent in the north and west. Our predicted distribution matches our expectations.
 
-This is really the bare minimum we can do - check that our statistical model matches our internal model, or rather, current knowledge about the system. That isn't to say that we should be loyal to what we already know - part of buildin gmodels is to further scientific understanding. Indeed by exploring th epredicted distribution in the context of current understanding, new gaps in knowledge are often identified. These gaps can be further explored in future studies.
+This is really the bare minimum we can do - check that our statistical model matches our internal model, or rather, current knowledge about the system. That isn't to say that we should be loyal to what we already know - part of building models is to further scientific understanding. Indeed by exploring th epredicted distribution in the context of current understanding, new gaps in knowledge are often identified. These gaps can be further explored in future studies.
 
-
-The next step in checking our model against current understanding is to, when possible, plot the predicted responses of our species of interest. With zoon, we can do this by using th eoutput module `ResponseCurve`. These curves show the predicted variation in probabilty of occurrence over the enviornmental gradients included in our model. When we include pure covariates, these relationships are informative and useful in the context of management. When we combine our covariates into principle componants with principle componant analysis, we lose the value that interpretation of these response curves provide.
+Next we might check that the shape of the relationships to see that they match our understanding of the system. We can plot the response curves using `ResponsePlot`
 
 ```{r response plots, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
-                          covariate = CarolinaWrenRasters,
-                          process = NoProcess,
-                          model = LogisticRegression,
-                          output = ResponsePlot)
+
+ChangeWorkflow(wf, output = ResponsePlot)
 ```
+
+From these response plots, we see that the probability of occurrence decreases with increasing latitude (toward the equator), which matches our expectation given that presences increase moving eastwards.
 
 Lastly, in our bare minimum model evalaution, we can check the coeffcients of our linear predicted (for parametric models). When we're checking the coefficients, we're makign sure that the sign of the coefficeint matches the raw data. It would be spurious if, after plotting the raw data, that a positive relationship was predicted when a negative one is observed. We can check coefficients by using the output module ` `.
 
 ```{r coefficients, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
-                          covariate = CarolinaWrenRasters,
-                          process = NoProcess,
-                          model = LogisticRegression,
-                          output = CoefficientPlot)
+
+ChangeWorkflow(wf, output = CoefficientPlot)
+
 ```
 
 In this coefficient plot, from our logistic regression SDM, we can see the estimated coefficient for each of our included covariates. The covariates that have a p-value of less than 0.05 are orange and the non-significant coefficeints are navy blue. For the carolina wren...
 
 
-
-
 Let's do all these things at once:
 ```{r chain bare minimum, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
-                          covariate = CarolinaWrenRasters,
-                          process = NoProcess,
-                          model = LogisticRegression,
-                          output = Chain(PrintMap, ResponsePlot, CoefficientPlot))
+
+ChangeWorkflow(wf, output = Chain(PrintMap, ResponsePlot, CoefficientPlot))
 
 ```
 
+# Measuring performance
 
-# Independence
+So far we've just eye-balled the goodness of fit. Let's measure it. We do this with performance measures, which in zoon, are located in the `PerformanceMeasures` output module:
 
-An underlying assumption of most presence-background regression models is that the occurrence data are conditionally independent given the covariates, meaning the covariates are expected to explain all the spatial variation in our data. Typically, however, this is not the case. Spatial dependence, for example through clustering or social aggregation of species, may take place, invalidating this assumption of independence. There are a handful of modelling approaches to identifying spatial dependence structures, including Gibbs or Cox process models, that will be discussed elsewhere.
+```{r performance measures, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
 
-
-
-### Internal evalution
-
-The next step up in the model evaluation game is internal evaluation. Internal evaluation checks if our model is a good description of the data we fit it with. To do this in zoon, we use the process module Crossvalidate with k folds. To get the benfit of crossvalidation, we need to measure how good the fit is to the folded datasets left out. We can do this with the output module PerformanceMeasures.
-
-```{r roc curve, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
-                          covariate = CarolinaWrenRasters,
-                          process = NoProcess,
-                          model = LogisticRegression,
-                          output = ROCcurve)
-```
-
-### Crossvalidation
-
-```{r performance measure, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
-                          covariate = CarolinaWrenRasters,
-                          process = Crossvalidate(k = 10),
-                          model = LogisticRegression,
-                          output = PerformanceMeasures)
-```
-
-Then, from the workflow object, we can get the performance measures by extracting the output from the workflow using hte accessor function `Output()`. This returns a list of all the performance measures
-
-```{r performance measure extract, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-Output(zoon_workflow)
+ChangeWorkflow(wf, output = PerformanceMeasures)
 
 ```
 
+The performance measures module returns a series of numbers that measure how well the predicted data match the actual data. Of these, the area under the receiver operating characteristic curve (AUC) is the most common. The AUC measures how good a model is at discriminating a site where a species is present from a site where teh pecies is absent. An AUC of 0.5 means the model is no better than random, an AUC of 1 means the model is perfect. This output module also provide a number of other less popular measure of model fit.
 
+When we use the PerformanceMeasures output module we get a warning saying we "have no cross-validation folds, validation statistics may be misleading". This is because model fit should be tested on independent data. When we have no independent data, we can pretend we do by having a training dataset and a test dataset, which is  aprotion of our data that we leave out of the model to test the fit with.
 
+# Cross-validation
 
-The Crossvalidate process module randomly groups fold datasets (if presence-absence, the folds have equal proportions of presence and absences as in the dataset). However, we can more specifically ask how our model is at prediction. For example, we can do geographic cross-validation where we ask how our model can predict across geographic space. We do this by....
+```{r CV performance measure, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
 
-#### Comparing models
+ChangeWorkflow(wf,
+               process = Crossvalidate(k = 10),
+               output = PerformanceMeasures)
+
+```
+
+Or if we just want AUC:
+
+```{r}
+
+ChangeWorkflow(wf,
+               process = Crossvalidate(k = 10),
+               output = AUC)
+
+```
+
+# Comparing models
 
 We can use the performance measuer discussed above to select between models
+
 ```{r compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-zoon_workflow <- workflow(occurrence = CarolinaWrenPA,
+two_models <- workflow(occurrence = CarolinaWrenPA,
                           covariate = CarolinaWrenRasters,
                           process = Crossvalidate(k = 10),
-                          model = list(LogisticRegression, mgcv),
-                          output = PerformanceMeasures)
+                          model = list(LogisticRegression, MaxNet),
+                          output = AUC)
 ```
 
 When we have more than one model module in a list, our performance measures are returned in a list of length n models
+
 ```{r performance measure extract compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-Output(zoon_workflow)
+Output(two_models)
 
 ```
 
-#### Information criteria
 
-Adding more parameters almost always improves the fit of the model, so why not just put them all in? While adding more parameters improves the fit, it may reduce the ability of the model to predict new data outside your current sample. 
-
-There are two fundamental types of statistical error that we must deal with when evaluating and interpreting model results: overfitting and underfitting. Both of these errors lead to poor prediction by the model, or its ability to retrodict the original data. When we overfit our data, we learn too much from our data, while underfitting leads us to learn too little from our data. 
-
-
-
-
-The information theoretic approach to model selection uses information criteria, which are metrics to score models by prediction accuracy with a penalty for complexity. 
-
-This approach is in contrast to significance testing approaches that focus on selecting models where all terms have <0.05 significance. Some 'significant' terms may not help improve prediction, whereas some that are not might. 
-
-Information criteria build on deviance measures by penalising models for additional covariates. That is, they select for accurate and *parimsoneous* models.
-
-## Call to action
 
 
 
