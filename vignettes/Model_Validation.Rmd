@@ -121,7 +121,7 @@ ChangeWorkflow(wf,
 
 Or if we just want AUC:
 
-```{r}
+```{r AUC, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
 
 ChangeWorkflow(wf,
                process = Crossvalidate(k = 10),
@@ -129,9 +129,24 @@ ChangeWorkflow(wf,
 
 ```
 
+# External validation
+The gold standard of model evaluation is checking our predictions against an independent dataset. In zoon we do this by Chaining together our two datasets, one of which is a dataset we load into R from our local machine:
+
+```{r external validation, eval=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+external_validation <- workflow(occurrence = Chain(CarolinaWrenPA, 
+                                                   LocalOccurrenceData("cbc_pa.csv",
+                                                                       "presence/absence",
+                                                                       externalValidation = TRUE)),
+                                covariate = CarolinaWrenRasters,
+                                process = NoProcess,
+                                model = LogisticRegression,
+                                output = AUC)
+
+```
+
 # Comparing models
 
-We can use the performance measuer discussed above to select between models
+We can use the performance measuer discussed above to select between models. We can choose between modelling algorythms, like here we're comparing logistic regression and MaxNet:
 
 ```{r compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
 two_models <- workflow(occurrence = CarolinaWrenPA,
@@ -140,6 +155,7 @@ two_models <- workflow(occurrence = CarolinaWrenPA,
                           model = list(LogisticRegression, MaxNet),
                           output = AUC)
 ```
+
 
 When we have more than one model module in a list, our performance measures are returned in a list of length n models
 
