@@ -1,5 +1,6 @@
 ---
-title: "Model Evaluation"
+title: "Model evaluation"
+csl: Methods.csl
 output:
   html_document:
     css: zoon.css
@@ -8,12 +9,11 @@ output:
     toc_float:
       collapsed: no
       toc_depth: 4
-  pdf_document:
-    toc: yes
+bibliography: bibliography.bib
 vignette: |
-  %\VignetteIndexEntry{Model Validation}
-  %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{Model evaluation}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r knitr_options, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
@@ -54,13 +54,19 @@ wf <- workflow(occurrence = CarolinaWrenPA,
 The Bare Minimum is what we absolutely must do in order to be able to defend our model. The bare minimum is about checking that our results *make sense*. Does our model make sense given the data we fit it with and does it make sense when considering our internal model of the system we're studying.
 
 First things first, let's visually check the raw data against the fitted result using a map. We'll plot the predicted surface of our model using the `PrintMap` ourput module and overlay the raw date with the `points=TRUE` argument.
-
-
-
-```{r map, message=FALSE, warning=FALSE, fig.align='center', fig.height=7, fig.width=7, cache = TRUE}
+```{r map, eval=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=7, fig.width=7, cache = TRUE}
 
 ChangeWorkflow(wf, output = PrintMap(points=TRUE))
 ```
+
+```{r render map, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=5, fig.width=7, cache = TRUE}
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = NoProcess,
+               model = LogisticRegression,
+               output = PrintMap(points=TRUE))
+```
+
 
 By exploring the map, we can check that the absences (or background points) overlay areas of low probability and the presences overlay areas of high probability, broadly. In the map of the carolina wren logistic regression SDM, we can see that the area with high probability in the southeast are overlain by the presences points and the purple areas, low probabilty, are overlain with the absences points.
 
@@ -70,18 +76,36 @@ This is really the bare minimum we can do - check that our statistical model mat
 
 Next we might check that the shape of the relationships to see that they match our understanding of the system. We can plot the response curves using `ResponsePlot`
 
-```{r response plots, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-
+```{r render response plots, echo=TRUE, eval=FALSE, cache = TRUE, message=FALSE, warning=FALSE, fig.align='center', fig.height=5, fig.width=7, cache=TRUE}
 ChangeWorkflow(wf, output = ResponsePlot)
+```
+
+```{r response plots, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE, fig.align='center', fig.height=5, fig.width=7, cache=TRUE}
+par(mfrow=c(2,3))
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = NoProcess,
+               model = LogisticRegression,
+               output = ResponsePlot)
 ```
 
 From these response plots, we see that the probability of occurrence decreases with increasing latitude (toward the equator), which matches our expectation given that presences increase moving eastwards.
 
 Lastly, in our bare minimum model evalaution, we can check the coeffcients of our linear predicted (for parametric models). When we're checking the coefficients, we're makign sure that the sign of the coefficeint matches the raw data. It would be spurious if, after plotting the raw data, that a positive relationship was predicted when a negative one is observed. We can check coefficients by using the output module ` `.
 
-```{r coefficients, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+```{r coeffcients, echo=TRUE, eval = FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
 
 ChangeWorkflow(wf, output = CoefficientPlot)
+
+```
+
+```{r render coeffcients, eval=TRUE, echo = FALSE,  message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
+
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = NoProcess,
+               model = LogisticRegression,
+               output = CoefficientPlot)
 
 ```
 
@@ -89,21 +113,40 @@ In this coefficient plot, from our logistic regression SDM, we can see the estim
 
 
 Let's do all these things at once:
-```{r chain bare minimum, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+
+```{r chain bare min, echo=TRUE, eval=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=5, fig.width=7, cache=TRUE}
 
 ChangeWorkflow(wf, output = Chain(PrintMap, ResponsePlot, CoefficientPlot))
-
 ```
 
+```{r render chain bare min, echo=FALSE, eval=TRUE, cache = TRUE, message=FALSE, warning=FALSE, fig.align='center', fig.height=5, fig.width=7, cache=TRUE}
+par(mfrow=c(2,3))
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = NoProcess,
+               model = LogisticRegression,
+               output = Chain(PrintMap, ResponsePlot, CoefficientPlot))
+```
 # Measuring performance
 
 So far we've just eye-balled the goodness of fit. Let's measure it. We do this with performance measures, which in zoon, are located in the `PerformanceMeasures` output module:
 
-```{r performance measures, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+```{r performance measures, echo=TRUE, eval=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
 
 ChangeWorkflow(wf, output = PerformanceMeasures)
 
 ```
+
+```{r render performance measures, eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
+
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = NoProcess,
+               model = LogisticRegression,
+               output = PerformanceMeasures)
+
+```
+
 
 The performance measures module returns a series of numbers that measure how well the predicted data match the actual data. Of these, the area under the receiver operating characteristic curve (AUC) is the most common. The AUC measures how good a model is at discriminating a site where a species is present from a site where teh pecies is absent. An AUC of 0.5 means the model is no better than random, an AUC of 1 means the model is perfect. This output module also provide a number of other less popular measure of model fit.
 
@@ -111,7 +154,7 @@ When we use the PerformanceMeasures output module we get a warning saying we "ha
 
 # Cross-validation
 
-```{r CV performance measure, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+```{r CV performance measure, eval = FALSE, echo=TRUE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
 
 ChangeWorkflow(wf,
                process = Crossvalidate(k = 10),
@@ -119,9 +162,20 @@ ChangeWorkflow(wf,
 
 ```
 
+```{r render CV performance measure, eval= TRUE, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
+
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = Crossvalidate(k = 10),
+               model = LogisticRegression,
+               output = PerformanceMeasures)
+
+```
+
+
 Or if we just want AUC:
 
-```{r AUC, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+```{r AUC, message=FALSE, echo=TRUE, eval=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
 
 ChangeWorkflow(wf,
                process = Crossvalidate(k = 10),
@@ -129,10 +183,21 @@ ChangeWorkflow(wf,
 
 ```
 
-# External validation
-The gold standard of model evaluation is checking our predictions against an independent dataset. In zoon we do this by Chaining together our two datasets, one of which is a dataset we load into R from our local machine:
 
-```{r external validation, eval=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+```{r render AUC, message=FALSE, echo=FALSE, eval=TRUE,  warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
+
+wf <- workflow(occurrence = CarolinaWrenPA,
+               covariate = CarolinaWrenRasters,
+               process = Crossvalidate(k = 10),
+               model = LogisticRegression,
+               output = AUC)
+
+```
+
+# External validation - the gold standard
+The gold standard of model evaluation is checking our predictions against an independent dataset. That is, by a dataset collected at a difference time but the same methods as the original dataset. In zoon we do this by Chaining together our two datasets, one of which is a dataset we load into R from our local machine:
+
+```{r external validation, eval=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
 external_validation <- workflow(occurrence = Chain(CarolinaWrenPA, 
                                                    LocalOccurrenceData("cbc_pa.csv",
                                                                        "presence/absence",
@@ -146,23 +211,45 @@ external_validation <- workflow(occurrence = Chain(CarolinaWrenPA,
 
 # Comparing models
 
-We can use the performance measuer discussed above to select between models. We can choose between modelling algorythms, like here we're comparing logistic regression and MaxNet:
+We can use the performance measures to choose between models. We might want to choose which set f variables we include, or we might want to choose which modellign method to use. THe comparison we want to make will direct which performance measures we use.
 
-```{r compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
-two_models <- workflow(occurrence = CarolinaWrenPA,
+If we want to choose which modelling algorythm is best, and we already know what covaraites we're using, we need to choose a performance measure that works for all the modelling methods we're considering. For example, deviance is a measure of model fit only available for maximum likilihhod models (e.g., GLMs). In contrast, AUC works for any model that is able ot make predictions. Let's use AUC to choose between the LogisticRegression and MaxNet modelling methods:
+
+```{r compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
+two_models <- workflow(occurrence = CarolinaWrenPO,
                           covariate = CarolinaWrenRasters,
-                          process = Crossvalidate(k = 10),
+                          process = Chain(Background(100), Crossvalidate(k = 10)),
                           model = list(LogisticRegression, MaxNet),
                           output = AUC)
+
+ext <- extent(Covariate(two_models))
+wf <- workflow(occurrence = CarolinaWrenPO,
+               covariate = Bioclim(extent = as.vector(ext)),
+               process = Chain(Background(1000), Crossvalidate(k = 10)),
+               model = list(mgcv, MaxNet, RandomForest),
+               output = AUC)
 ```
 
+The AUCs for the GAM model (mgcv model module) and MaxNet models are comparable and relatively high. is 0.90 and for MaxNet it's 0.90. These AUC values are both quite high and we can be comforable that these modelling methods are comparably good at fitting our data.
 
+Another choice we may have to make is what set of variables to include in our model. Let's choose between two sets of covariates using one modelling method. 
+```{r choose covariates, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
+ext <- extent(Covariate(two_models))
+two_models <- workflow(occurrence = CarolinaWrenPO,
+                          covariate = list(Bioclim(layers=1:9, extent = as.vector(ext)), Bioclim(layers=10:19, extent = as.vector(ext))),
+                          process = Chain(Background(500), Crossvalidate(k = 10)),
+                          model = LogisticRegression,
+                          output = ReliabilityPlot)
+
+```
 When we have more than one model module in a list, our performance measures are returned in a list of length n models
 
-```{r performance measure extract compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4}
+```{r performance measure extract compare models, message=FALSE, warning=FALSE, fig.align='center', fig.height=4, fig.width=4, cache=TRUE}
 Output(two_models)
 
 ```
+
+# Conclusion
 
 
 
